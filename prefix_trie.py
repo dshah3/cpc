@@ -39,16 +39,40 @@ class CharacterPrefixTrie:
                 return None
             node = node.children[char]
         return node
+    
+    def find_all_tokens_starting_with(self, prefix: str) -> set:
+        node = self.root
+        for char in prefix:
+            if char in node.children:
+                node = node.children[char]
+            else:
+                return set()
+            
+        allowed_ids = set()
+        self._collect_all_tokens_from_node(node, allowed_ids)
+        return allowed_ids
+    
+    def _collect_all_tokens_from_node(self, node: TrieNode, collection_set: set):
+        if node.is_word:
+            collection_set.update(node.token_ids)
 
-if __name__ == "__main__":
-    trie = CharacterPrefixTrie("mistralai/Mistral-7B-Instruct-v0.3")
+        for child_node in node.children.values():
+            self._collect_all_tokens_from_node(child_node, collection_set)
 
-    trie.create_prefix_trie()
+# if __name__ == "__main__":
+#     trie = CharacterPrefixTrie("mistralai/Mistral-7B-Instruct-v0.3")
 
-    prefix = "\u2581want"
-    node = trie.get_node_for_prefix(prefix)
-    if node:
-        trie.print_trie(node=node, prefix=prefix)
-    else:
-        print(f"No tokens found with prefix '{prefix}'")
+#     trie.create_prefix_trie()
+
+#     remaining_prefix = "▁pri"
+#     print(f"Finding allowed tokens for the prefix: '{remaining_prefix}'\n")
+
+#     allowed_ids = trie.find_all_tokens_starting_with(remaining_prefix)
+
+#     print(f"Found {len(allowed_ids)} allowed token IDs: {allowed_ids}\n")
+
+#     print("These correspond to the following tokens:")
+#     for token_id in allowed_ids:
+#         token_str = trie.tokenizer.convert_ids_to_tokens([token_id])[0]
+#         print(f"ID: {token_id} -> Token String: '{token_str}'")
 
