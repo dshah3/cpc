@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     trie.create_prefix_trie()
 
-    prefix = "▁I ▁want ▁to ▁live ▁acros"
+    prefix = "privacy "
     for i in range(len(prefix), -1, -1):
         print(prefix[i:])
         allowed_tokens = trie.find_all_tokens_starting_with(prefix[i:])
