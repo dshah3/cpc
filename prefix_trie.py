@@ -21,24 +21,6 @@ class CharacterPrefixTrie:
                 node = node.children[char]
             node.is_word = True
             node.token_ids.add(token_id)
-
-    def print_trie(self, node=None, prefix=""):
-        if node is None:
-            node = self.root
-
-        if node.is_word:
-            print(f"Token string: '{prefix}', Token IDs: {node.token_ids}")
-
-        for char, child in node.children.items():
-            self.print_trie(child, prefix + char)
-
-    def get_node_for_prefix(self, prefix):
-        node = self.root
-        for char in prefix:
-            if char not in node.children:
-                return None
-            node = node.children[char]
-        return node
     
     def find_tokens_that_are_prefixes_of(self, text: str):
         allowed_token_ids = set()
@@ -73,15 +55,3 @@ class CharacterPrefixTrie:
 
         for child_node in node.children.values():
             self._collect_all_tokens_from_node(child_node, collection_set)
-
-if __name__ == "__main__":
-    trie = CharacterPrefixTrie("mistralai/Mistral-7B-Instruct-v0.3")
-
-    trie.create_prefix_trie()
-
-    prefix = "privacy "
-    for i in range(len(prefix), -1, -1):
-        print(prefix[i:])
-        allowed_tokens = trie.find_all_tokens_starting_with(prefix[i:])
-        print(f"Prefix: {prefix[i:]}, Number of allowed tokens: {len(allowed_tokens)}")
-
