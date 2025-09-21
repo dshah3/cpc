@@ -1,3 +1,7 @@
+import copy
+from utils import _adapt_tokenizer, create_prefix_trie
+from prefix_constrained_logits_processor import PrefixConstrainedLogitsProcessor
+
 from vllm import LLM
 from vllm.sampling_params import SamplingParams
 import torch
@@ -5,49 +9,7 @@ import torch.multiprocessing as mp
 from transformers import AutoTokenizer
 from typing import List, Tuple, Set
 from functools import lru_cache
-import copy
-
 from prefix_trie import CharacterPrefixTrie
-
-
-@lru_cache(maxsize=2)
-def create_prefix_trie(model_name):
-    trie = CharacterPrefixTrie(model_name)
-    trie.create_prefix_trie()
-    return trie
-
-@lru_cache
-def _adapt_tokenizer(tokenizer):
-    """
-    Adapt tokenizer by caching the decoded vocabulary
-    """
-    tokenizer = copy.deepcopy(tokenizer)
-    tokenizer.decoded_vocab = [(tokenizer.decode(tok_id), tok_id) for _, tok_id in tokenizer.get_vocab().items()]
-    return tokenizer
-
-
-def get_decoded_token_str(tokenizer, token_id: int) -> str:
-    decoded_vocab = getattr(tokenizer, "decoded_vocab", None)
-    if decoded_vocab is not None:
-        if not hasattr(tokenizer, "decoded_vocab_by_id"):
-            tokenizer.decoded_vocab_by_id = {
-                tok_id: tok_str for tok_str, tok_id in decoded_vocab
-            }
-        token_str = tokenizer.decoded_vocab_by_id.get(token_id)
-        if token_str is not None:
-            return token_str
-
-    return tokenizer.decode([token_id])
-
-
-def token_ids_to_text(tokenizer, token_ids: List[int]) -> str:
-    if not token_ids:
-        return ""
-
-    if len(token_ids) == 1:
-        return get_decoded_token_str(tokenizer, token_ids[0])
-
-    return tokenizer.decode(token_ids)
 
 def find_tokenization_breakpoint(tokenizer, trie: CharacterPrefixTrie, prefix: str) -> Tuple[List[int], str]:
     last_valid_position = 0
@@ -80,6 +42,8 @@ def generate_with_prefix_constraint(
 
     prefix_tokens, remaining_prefix = find_tokenization_breakpoint(tokenizer, trie, character_prefix)
 
+    current_text = prompt + tokenizer.decode(prefix_tokens, skip_special_tokens=False, clean_up_tokenization_spaces=False) if prefix_tokens else prompt
+
     llm = LLM(
         model=model_name,
         tokenizer_mode="mistral",
@@ -90,12 +54,10 @@ def generate_with_prefix_constraint(
         tensor_parallel_size=1,
     )
 
-    current_text = prompt + token_ids_to_text(tokenizer, prefix_tokens)
-    remaining = remaining_prefix
     tokens_generated = 0
 
-    while remaining and tokens_generated < max_new_tokens:
-        processor = PrefixConstrainedLogitsProcessor(tokenizer, trie, remaining)
+    while remaining_prefix and tokens_generated < max_new_tokens:
+        processor = PrefixConstrainedLogitsProcessor(tokenizer, trie, remaining_prefix)
         sampling_params = SamplingParams(
             max_tokens=1,
             temperature=0.0,
@@ -114,10 +76,10 @@ def generate_with_prefix_constraint(
             break
 
         processor.update_remaining_prefix(token_ids[0])
-        remaining = processor.remaining_prefix
+        remaining_prefix = processor.remaining_prefix
 
     tokens_left = max_new_tokens - tokens_generated
-    if tokens_left > 0 and not remaining:
+    if tokens_left > 0 and not remaining_prefix:
         sampling_params = SamplingParams(
             max_tokens=tokens_left,
             temperature=0.0,

@@ -1,10 +1,13 @@
-from prefix_trie import CharacterPrefixTrie
 from typing import List, Tuple, Set
 import torch
+
+from prefix_trie import CharacterPrefixTrie
+from utils import _get_decoded_vocab_by_id
 
 class PrefixConstrainedLogitsProcessor:
 
     def __init__(self, tokenizer, trie: CharacterPrefixTrie, remaining_prefix: str):
+        # Tokenizer must be adapted with _adapt_tokenizer before use
         self.tokenizer = tokenizer
         self.trie = trie
         self.remaining_prefix = remaining_prefix
@@ -27,8 +30,8 @@ class PrefixConstrainedLogitsProcessor:
     def update_remaining_prefix(self, generated_token_id: int):
         if self.prefix_consumed:
             return
-
-        token_str = get_decoded_token_str(self.tokenizer, generated_token_id)
+        decoded_vocab_by_id = _get_decoded_vocab_by_id(self.tokenizer)
+        token_str = decoded_vocab_by_id[generated_token_id]
 
         if self.remaining_prefix.startswith(token_str):
             self.remaining_prefix = self.remaining_prefix[len(token_str):]
@@ -41,7 +44,7 @@ class PrefixConstrainedLogitsProcessor:
             self.prefix_consumed = True
 
     def _allowed_token_ids_for_remaining_prefix(self) -> Set[int]:
-        allowed: Set[int] = set()
+        allowed = set()
         allowed.update(self.trie.find_tokens_that_are_prefixes_of(self.remaining_prefix))
         allowed.update(self.trie.find_all_tokens_starting_with(self.remaining_prefix))
         return allowed
