@@ -1,7 +1,7 @@
 
 import copy
 from functools import lru_cache
-from typing import Dict, List
+from typing import Dict
 
 from prefix_trie import CharacterPrefixTrie
 
@@ -31,12 +31,3 @@ def _adapt_tokenizer(tokenizer):
         (token_str, token_id) for token_id, token_str in decoded_vocab_by_id.items()
     ]
     return tokenizer
-
-
-def _get_decoded_vocab_by_id(tokenizer) -> Dict[int, str]:
-    decoded_vocab_by_id = getattr(tokenizer, 'decoded_vocab_by_id', None)
-    if decoded_vocab_by_id is None:
-        raise RuntimeError(
-            'Tokenizer must be adapted with _adapt_tokenizer before decoding token ids.'
-        )
-    return decoded_vocab_by_id

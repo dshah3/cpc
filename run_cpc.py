@@ -1,14 +1,11 @@
-import copy
 from utils import _adapt_tokenizer, create_prefix_trie
 from prefix_constrained_logits_processor import PrefixConstrainedLogitsProcessor
 
 from vllm import LLM
 from vllm.sampling_params import SamplingParams
-import torch
 import torch.multiprocessing as mp
 from transformers import AutoTokenizer
-from typing import List, Tuple, Set
-from functools import lru_cache
+from typing import List, Tuple
 from prefix_trie import CharacterPrefixTrie
 
 def find_tokenization_breakpoint(tokenizer, trie: CharacterPrefixTrie, prefix: str) -> Tuple[List[int], str]:
@@ -42,7 +39,11 @@ def generate_with_prefix_constraint(
 
     prefix_tokens, remaining_prefix = find_tokenization_breakpoint(tokenizer, trie, character_prefix)
 
-    current_text = prompt + tokenizer.decode(prefix_tokens, skip_special_tokens=False, clean_up_tokenization_spaces=False) if prefix_tokens else prompt
+    current_text = prompt + tokenizer.decode(
+        prefix_tokens,
+        skip_special_tokens=False,
+        clean_up_tokenization_spaces=False
+    ) if prefix_tokens else prompt
 
     llm = LLM(
         model=model_name,
@@ -62,7 +63,7 @@ def generate_with_prefix_constraint(
             max_tokens=1,
             temperature=0.0,
             top_p=1.0,
-            top_k=1,
+            top_k=5,
             logits_processors=[processor],
         )
 
